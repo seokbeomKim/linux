@@ -164,6 +164,7 @@
 #define SYS_MVFR2_EL1			sys_reg(3, 0, 0, 3, 2)
 
 #define SYS_ID_AA64PFR0_EL1		sys_reg(3, 0, 0, 4, 0)
+/* D13.2.65, ID_AA64PFR1_EL1, AArch64 Processor Feature Register 1 */
 #define SYS_ID_AA64PFR1_EL1		sys_reg(3, 0, 0, 4, 1)
 #define SYS_ID_AA64ZFR0_EL1		sys_reg(3, 0, 0, 4, 4)
 

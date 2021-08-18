@@ -65,6 +65,11 @@ extern bool arm64_use_ng_mappings;
 
 #define _PAGE_DEFAULT		(_PROT_DEFAULT | PTE_ATTRINDX(MT_NORMAL))
 
+/*
+ * PXN, Privileged execute-never, (EL0보다 높은 레벨에서의 실행 권한을 제어한다.)
+ * UXN, Unprivileged execute-never, (EL0에서의 실행 권한을 제어한다.)
+ */
+
 #define PAGE_KERNEL		__pgprot(PROT_NORMAL)
 #define PAGE_KERNEL_TAGGED	__pgprot(PROT_NORMAL_TAGGED)
 #define PAGE_KERNEL_RO		__pgprot((PROT_NORMAL & ~PTE_WRITE) | PTE_RDONLY)

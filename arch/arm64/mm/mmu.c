@@ -572,6 +572,9 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 	vma->flags	= VM_MAP | vm_flags;
 	vma->caller	= __builtin_return_address(0);
 
+	/*
+	 * vmalloc 활성화 전 early 단계에서 vm 에 커널 고정 영역을 추가한다.
+	 */
 	vm_area_add_early(vma);
 }
 
@@ -643,6 +646,14 @@ static bool arm64_early_this_cpu_has_bti(void)
  */
 static void __init map_kernel(pgd_t *pgdp)
 {
+	/*
+	 * text vs. inittext, data vs. initdata
+	 * 관련 commit을 참고하면 inittext와 initdata가 왜 생겼는지 알 수 있다.
+	 * execute와 write가 함께 한 섹션에서 일어나는 것을 방지하기 위해 각각의 권한을
+	 * 분리할 수 있도록 initdata/inittext 두 섹션을 추가하였다.
+	 *
+	 * https://github.com/torvalds/linux/commit/2ebe088b73a87c8fc70231b468c719337f258bf0
+	 */
 	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_inittext,
 				vmlinux_initdata, vmlinux_data;
 
@@ -650,6 +661,12 @@ static void __init map_kernel(pgd_t *pgdp)
 	 * External debuggers may need to write directly to the text
 	 * mapping to install SW breakpoints. Allow this (only) when
 	 * explicitly requested with rodata=off.
+	 *
+	 * CONFIG_STRICT_KERNEL_RWX 또는 CONFIG_STRICT_MODULE_RWX 또는
+	 * 커널 부트 옵션으로 "rodata=" 가 true로 설정된 경우 rodata_enabled 가
+	 * 활성화된다. rodata_enabled 인 경우 text_pro(tection)은 PAGE_KERNEL_ROX가
+	 * 되는데 ~(PTE_WRITE | PTE_PXN) 이므로, read-only 이면서 Privileged
+	 * Execution이 허용되는 권한임을 알 수 있다.
 	 */
 	pgprot_t text_prot = rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
 
@@ -657,6 +674,12 @@ static void __init map_kernel(pgd_t *pgdp)
 	 * If we have a CPU that supports BTI and a kernel built for
 	 * BTI then mark the kernel executable text as guarded pages
 	 * now so we don't have to rewrite the page tables later.
+	 *
+	 * ARM Reference Manual: C6.2.39 참고
+	 *
+	 * BTI (Branch Target Identification)
+	 * 분기 목적지로서 의도되지 않은 명령어를 실행하지 않도록 메모리 페이지를 보호.
+	 * 보호 메모리 영역 밖에서 BTI 명령어는 NOP으로 실행된다.
 	 */
 	if (arm64_early_this_cpu_has_bti())
 		text_prot = __pgprot_modify(text_prot, PTE_GP, PTE_GP);
@@ -664,6 +687,15 @@ static void __init map_kernel(pgd_t *pgdp)
 	/*
 	 * Only rodata will be remapped with different permissions later on,
 	 * all other segments are allowed to use contiguous mappings.
+	 *
+	 * va_start, va_end에 해당하는 주소들은 언제, 어떻게 설정되는가?
+	 * => Linker script (vmlinux.lds.S) 통해 정의된다.
+	 * 어떻게 vmlinux.lds.S 파일에 있는 레이블을 심볼 형태로 가져올 수 있는가?
+	 * => <symbol> = <value>; 형태로 정의된 것은 모두 심볼로서 외부에서 가져다
+	 * 사용할 수 있다. 콜론(:)을 사용하여 정의한 섹션을 제외한 나머지는 모두 심볼이다.
+	 *
+	 * Q. map_kernel_segment 함수 내부에서 va_start와 pa_start 간에 차이가 있을까?
+	 * 있다면, relocation 된 offset 만큼의 차이만 있을까?
 	 */
 	map_kernel_segment(pgdp, _text, _etext, text_prot, &vmlinux_text, 0,
 			   VM_NO_GUARD);
@@ -708,6 +740,12 @@ static void __init map_kernel(pgd_t *pgdp)
 
 void __init paging_init(void)
 {
+	/*
+	 * 예전에는 swapper_pg_dir을 사용했지만 현재는 취약점 방어를 위해 init_pg_dir을
+	 * 사용하도록 변경되었다.
+	 * pgd_set_fixmap은 swapper_pg_dir (커널 페이지 테이블) 을 가져와 fixmap에
+	 * 매핑(prot 설정)하고 매핑된 fixmap에 해당하는 pgdp 를 가져온다.
+	 */
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
 
 	map_kernel(pgdp);
