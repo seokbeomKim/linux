@@ -8,6 +8,10 @@
 #include <asm/memory.h>
 
 /*
+ * ARM64 커널에서는 기본으로 CONFIG_PGTABLE_LEVELS 값이 4로 설정된다.
+ */
+
+/*
  * Number of page-table levels required to address 'va_bits' wide
  * address, without section mapping. We resolve the top (va_bits - PAGE_SHIFT)
  * bits with (PAGE_SHIFT - 3) bits at each page table level. Hence:
@@ -54,6 +58,7 @@
 
 /*
  * PUD_SHIFT determines the size a level 1 page table entry can map.
+ * PUD_SHIFT는 ARM64 기준 30 이다.
  */
 #if CONFIG_PGTABLE_LEVELS > 3
 #define PUD_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(1)

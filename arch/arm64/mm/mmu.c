@@ -314,6 +314,12 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	}
 	BUG_ON(p4d_bad(p4d));
 
+	/*
+	 * FIX_PUD 가상 주소에 addr을 매핑한다.
+	 * Q. addr은 가상 주소 아니었나?
+	 * => 가상 주소라도 아직 페이지 테이블이 매핑되어 있지 않으므로 fixmap에
+	 * 매핑해줘야 한다.
+	 */
 	pudp = pud_set_fixmap_offset(p4dp, addr);
 	do {
 		pud_t old_pud = READ_ONCE(*pudp);
@@ -322,6 +328,8 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
+		 * 1 GB 블록일 경우 PUD를 사용하고 그렇지 않다면 PMD 엔트리를
+		 * 할당하도록 한다.
 		 */
 		if (use_1G_block(addr, next, phys) &&
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
@@ -346,6 +354,19 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	pud_clear_fixmap();
 }
 
+/*
+ * pgdir:	0xfffffdfffe434000
+ * phys:	0x93200000 (__pa_symbol(_text))
+ * virt:	0xffff800010000000 (_text)
+ * size:	0xde0000
+ * prot:
+ * flags:	0x113d0ccc
+ * => phys &= PAGE_MASK: 0xbf8a8988
+ *
+ * pgd 테이블을 대상으로 pgd 매핑을 생성한다. pgd 매핑을 수행하면 그 뒤에 따르는
+ * PMD/PTE 테이블까지 각 엔트리를 매핑하고 연결한다. 하위 페이지 테이블을 할당해야 하는
+ * 경우에는 pgtable_alloc 을 사용한다.
+ */
 static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 				 unsigned long virt, phys_addr_t size,
 				 pgprot_t prot,
@@ -367,6 +388,10 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	end = PAGE_ALIGN(virt + size);
 
 	do {
+		/*
+		 * PGD 엔트리에 대한 PUD를 할당한다.
+		 * 이 때, physical address 도 페이지 테이블 엔트리 크기만큼 증가한다.
+		 */
 		next = pgd_addr_end(addr, end);
 		alloc_init_pud(pgdp, addr, next, phys, prot, pgtable_alloc,
 			       flags);
@@ -560,6 +585,11 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 	BUG_ON(!PAGE_ALIGNED(pa_start));
 	BUG_ON(!PAGE_ALIGNED(size));
 
+	/*
+	 * 요청 가상 주소 범위를 가상 주소에 해당하는 물리주소에 매핑한다.
+	 * <=> "요청 가상 주소를 해당하는 물리주소에 매핑될 수 있도록 페이지 테이블을
+	 * 구성한다."
+	 */
 	__create_pgd_mapping(pgdp, pa_start, (unsigned long)va_start, size, prot,
 			     early_pgtable_alloc, flags);
 
@@ -643,6 +673,8 @@ static bool arm64_early_this_cpu_has_bti(void)
 
 /*
  * Create fine-grained mappings for the kernel.
+ * 실행 영역과 비실행 영역 또한 보호하기 위해 커널 코드와 데이터의 읽기 전용 영역과
+ * 읽기/쓰기 영역을 나누어 적절한 매핑 속성으로 매핑한다.
  */
 static void __init map_kernel(pgd_t *pgdp)
 {
@@ -696,6 +728,15 @@ static void __init map_kernel(pgd_t *pgdp)
 	 *
 	 * Q. map_kernel_segment 함수 내부에서 va_start와 pa_start 간에 차이가 있을까?
 	 * 있다면, relocation 된 offset 만큼의 차이만 있을까?
+	 * => _text (0xffff800010000000) 에 대해 얻은 물리 주소는 0x93200000이다.
+	 * 이 때, kimage_voffset 은 0xffff7fff7ce00000 이므로,
+	 * vaddr(_text) - kimage_voffset = 0x93200000 임을 확인할 수 있다.
+	 *
+	 * [_text, _etext)			커널 이미지 일반 코드 영역
+	 * [_start_rodata, _inittext_begin)	커널 이미지 읽기 전용 데이터 영역
+	 * [__inittext_begin, __inittext_end)	초기화 코드
+	 * [__initdata_begin, __initdata_end)	초기화 데이터
+	 * [_data, end)				커널 이미지의 일반 데이터 영역
 	 */
 	map_kernel_segment(pgdp, _text, _etext, text_prot, &vmlinux_text, 0,
 			   VM_NO_GUARD);
@@ -745,10 +786,20 @@ void __init paging_init(void)
 	 * 사용하도록 변경되었다.
 	 * pgd_set_fixmap은 swapper_pg_dir (커널 페이지 테이블) 을 가져와 fixmap에
 	 * 매핑(prot 설정)하고 매핑된 fixmap에 해당하는 pgdp 를 가져온다.
+	 *
+	 * pgdp => 0xfffffdfffe434000
 	 */
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
 
+	/*
+	 * 커널 코드 및 데이터 영역, DRAM 영역을 커널용 페이지 테이블을 가리키는
+	 * swapper_pg_dir에 매핑한다.
+	 */
 	map_kernel(pgdp);
+
+	/*
+	 * 메모리를 관리하기 위한 메모리 맵을 구성한다.
+	 */
 	map_mem(pgdp);
 
 	pgd_clear_fixmap();
@@ -756,6 +807,10 @@ void __init paging_init(void)
 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 	init_mm.pgd = swapper_pg_dir;
 
+	/*
+	 * memblock에 등록해둔 reserve 영역을 제외한 나머지 free 영역을 버디 시스템으로
+	 * 전환한다.
+	 */
 	memblock_free(__pa_symbol(init_pg_dir),
 		      __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
 
