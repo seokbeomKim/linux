@@ -330,6 +330,11 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 
 	arm64_memblock_init();
 
+	/*
+	 * 페이지 테이블 구성 및 TTBR 교체
+	 * - TTBR1 교체 시 사용중인 TTBR1을 곧바로 바꿀 수 없으므로, idmap 페이지 타이블을
+	 * 이용하여 atomic 하게 TTBR1 레지스터를 변경한다.
+	 */
 	paging_init();
 
 	acpi_table_upgrade();

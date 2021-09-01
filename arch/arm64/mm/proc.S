@@ -172,8 +172,8 @@ SYM_FUNC_END(cpu_do_resume)
 	phys_to_ttbr \tmp2, \tmp1
 	offset_ttbr1 \tmp2, \tmp1
 	msr	ttbr1_el1, \tmp2
-	isb
-	tlbi	vmalle1
+	isb 		// 인스트럭션 파이프라인을 지운다.
+	tlbi	vmalle1 // TLB flush를 수행하고 다시 인스트럭션 파이프라인을 지운다.
 	dsb	nsh
 	isb
 .endm
@@ -185,6 +185,9 @@ SYM_FUNC_END(cpu_do_resume)
  * called by anything else. It can only be executed from a TTBR0 mapping.
  */
 SYM_FUNC_START(idmap_cpu_replace_ttbr1)
+	/*
+	 * DAIF (Interrupt Mask Bits) 레지스터를 x2에 백업하고 비활성화한다.
+	 */
 	save_and_disable_daif flags=x2
 
 	__idmap_cpu_set_reserved_ttbr1 x1, x3

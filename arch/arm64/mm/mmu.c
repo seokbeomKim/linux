@@ -305,6 +305,15 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	p4d_t *p4dp = p4d_offset(pgdp, addr);
 	p4d_t p4d = READ_ONCE(*p4dp);
 
+	/*
+	 * 예전에는 pgd_none 형태로 pgd 엔트리가 NULL 인 경우 pud 테이블을 할당받아
+	 * 연결했다. 호출하는 함수 이름은 p4d_* 로 되어 있지만 실제 구현 내용을 살펴보면
+	 * 모두 pgd_t 를 사용하는 것을 알 수 있다.
+	 * 앞서 p4d_offset(pgdp, addr)을 통해 addr에 해당하는 p4dp (pgd 엔트리)를
+	 * 가져온다. 그리고 해당 엔트리가 없는 경우에는 addr에 부합하는 페이지 테이블을
+	 * 새로 구성해줘야 하므로 하위 레벨 (pud) 엔트리를 할당한 뒤 __p4d_populate 를
+	 * 통해 함께 연결해준다.
+	 */
 	if (p4d_none(p4d)) {
 		phys_addr_t pud_phys;
 		BUG_ON(!pgtable_alloc);
@@ -318,7 +327,10 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	 * FIX_PUD 가상 주소에 addr을 매핑한다.
 	 * Q. addr은 가상 주소 아니었나?
 	 * => 가상 주소라도 아직 페이지 테이블이 매핑되어 있지 않으므로 fixmap에
-	 * 매핑해줘야 한다.
+	 * 매핑해줘야 한다. 물리 주소에 해당하는 가상 주소를 얻어오고 관련된 페이지 테이블
+	 * 엔트리까지 구성해주었지만 해당 페이지 테이블을 아직 TTBR 레지스터에 설정되어
+	 * 사용되지 않고 있다. 때문에 임시로 해당 페이지들을 사용하기 위해 fixmap 영역에
+	 * 매핑시켜줘야 한다.
 	 */
 	pudp = pud_set_fixmap_offset(p4dp, addr);
 	do {
@@ -329,7 +341,10 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
 		 * 1 GB 블록일 경우 PUD를 사용하고 그렇지 않다면 PMD 엔트리를
-		 * 할당하도록 한다.
+		 * 할당하도록 한다. 4K 페이지 테이블을 사용하면서 1G 단위로 addr, next,
+		 * phys가 정렬된 경우 pud 타입 섹션 매핑을 설정한다.
+		 * 여기서 주소가 1G에 정렬될 때 확인하는 이유는 pgd 엔트리가 담당하는
+		 * 사이즈가 1G 이기 때문이다. (pmd는 2M, pte는 4K)
 		 */
 		if (use_1G_block(addr, next, phys) &&
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
@@ -374,6 +389,12 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 				 int flags)
 {
 	unsigned long addr, end, next;
+
+	/*
+	 * virt 주소에 해당하는 페이지 테이블 엔트리에 대한 포인터를 가져온다.
+	 * pgdp: 0xfffffdfffe434000
+	 * address: 0xffff800010000000
+	 */
 	pgd_t *pgdp = pgd_offset_pgd(pgdir, virt);
 
 	/*
@@ -787,7 +808,10 @@ void __init paging_init(void)
 	 * pgd_set_fixmap은 swapper_pg_dir (커널 페이지 테이블) 을 가져와 fixmap에
 	 * 매핑(prot 설정)하고 매핑된 fixmap에 해당하는 pgdp 를 가져온다.
 	 *
+	 * swapper_pg_dir => ffff8000113cb000
 	 * pgdp => 0xfffffdfffe434000
+	 * kimage_vaddr => 0xffff800010000000
+	 * swapper_pg_dir(pa) == swapper_pg_dir - kimage_vaddr = 0x13CB000
 	 */
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
 
@@ -804,6 +828,12 @@ void __init paging_init(void)
 
 	pgd_clear_fixmap();
 
+	/*
+	 * 커널에서 사용하는 페이지 테이블을 가리키는 TTBR1 레지스터를 설정한다.
+	 * 이 때, map_kernel을 통해 구성한 커널용 페이지 테이블 (swapper_pg_dir)을
+	 * 레지스터를 통해 가리키도록 한다. 하지만, 이미 ttbr1이 사용되고 있으므로 이를
+	 * atomic 하게 처리하기 위한 과정이 필요하다.
+	 */
 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 	init_mm.pgd = swapper_pg_dir;
 

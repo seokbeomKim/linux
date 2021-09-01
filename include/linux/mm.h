@@ -119,6 +119,12 @@ extern int mmap_rnd_compat_bits __read_mostly;
 #define page_to_virt(x)	__va(PFN_PHYS(page_to_pfn(x)))
 #endif
 
+/*
+ * Linear mapping alias - 커널 이미지 영역에 있는 심볼의 가상주소를 얻어오기 위한 매크로
+ * 커널 이미지의 물리주소와 커널 이미지 영역의 가상주소, 커널 가상주소 영역에서의 가상 주소
+ * 등으로 구분된다. lm_alias 는 커널 이미지 영역 기준의 가상 주소, 즉 심볼을 입력 받아
+ * 일반적인 가상주소를 반환하는 매크로이다.
+ */
 #ifndef lm_alias
 #define lm_alias(x)	__va(__pa_symbol(x))
 #endif

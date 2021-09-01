@@ -252,6 +252,10 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	/*
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
+	 *
+	 * dsb: 캐시 작업이 완료될 때까지 기다림
+	 * isb: 인스트럭션 파이프라인을 비움
+	 * => cpu들을 한꺼번에 TLB 및 인스트럭션 캐시 등에 대해 동기화하는 작업이 필요
 	 */
 	if (pte_valid_not_user(pte)) {
 		dsb(ishst);

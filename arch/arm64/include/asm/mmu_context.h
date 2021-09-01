@@ -124,10 +124,18 @@ static inline void cpu_uninstall_idmap(void)
 		cpu_switch_mm(mm->pgd, mm);
 }
 
+/*
+ * TTBR0은 유저용 페이지 테이블 변환 레지스터로 사용하지만, 부트업 단계에서는 idmap 페이지
+ * 테이블을 위해 사용한다.
+ */
 static inline void cpu_install_idmap(void)
 {
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
+
+	/*
+	 * T0SZ: The size offset of the memory region addressed by TTBR0_EL1
+	 */
 	cpu_set_idmap_tcr_t0sz();
 
 	cpu_switch_mm(lm_alias(idmap_pg_dir), &init_mm);
@@ -136,6 +144,11 @@ static inline void cpu_install_idmap(void)
 /*
  * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
  * avoiding the possibility of conflicting TLB entries being allocated.
+ *
+ * 가상 주소에서 이미 커널 코드가 동작하고 있기 때문에 TTBR1 레지스터를 곧바로 변경할 수
+ * 없으므로 idmap 페이지 테이블을 사용하여 atomic 하게 TTBR1 레지스터를 변경해야 한다.
+ * idmap 페이지 테이블을 사용할 때 유저용 가상 페이지 테이블을 가리키는 TTBR0 레지스터를
+ * 임시로 사용한다.
  */
 static inline void cpu_replace_ttbr1(pgd_t *pgdp)
 {
@@ -154,10 +167,22 @@ static inline void cpu_replace_ttbr1(pgd_t *pgdp)
 		 * enable() callback.
 		 * Also we rely on the cpu_hwcap bit being set before
 		 * calling the enable() function.
+		 *
+		 * CNP (Common not Private translations)
+		 * In an implementation that includes FEAT_TTCNP, multiple PEs
+		 * (Processing Elements, Core로 알려짐) in the same Inner
+		 * Shareable domain can use the same translation table
+		 * entries for a given stage of translation in a particular
+		 * translation regime.
 		 */
 		ttbr1 |= TTBR_CNP_BIT;
 	}
 
+	/*
+	 * arch/arm64/mm/proc.S: SYM_FUNC_START(idmap_cpu_replace_ttbr1) 형태로
+	 * 어셈블리 함수로 구현되어 있다. 1:1 identity mapping 되어 있는 위치의
+	 * idmap_cpu_replace_ttbr1() 함수 가상 주소를 얻어온다.
+	 */
 	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
 
 	cpu_install_idmap();

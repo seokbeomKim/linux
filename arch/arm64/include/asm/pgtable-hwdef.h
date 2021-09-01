@@ -44,6 +44,12 @@
  */
 #define ARM64_HW_PGTABLE_LEVEL_SHIFT(n)	((PAGE_SHIFT - 3) * (4 - (n)) + 3)
 
+/*
+ * ARM64_HW_PGTABLE_LEVEL_SHIFT(0)
+ * = ((PAGE_SHIFT - 3) * (4) + 3)
+ * = ((12 - 3) * 4 + 3) = 39
+ */
+
 #define PTRS_PER_PTE		(1 << (PAGE_SHIFT - 3))
 
 /*
@@ -70,6 +76,7 @@
 /*
  * PGDIR_SHIFT determines the size a top-level page table entry can map
  * (depending on the configuration, this level can be 0, 1 or 2).
+ * CONFIG_PGTABLE_LEVELS for ARM64 = 4
  */
 #define PGDIR_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - CONFIG_PGTABLE_LEVELS)
 #define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
