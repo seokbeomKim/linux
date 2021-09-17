@@ -116,6 +116,7 @@ static inline pgd_t *pgd_offset_pgd(pgd_t *pgd, unsigned long address)
 /*
  * a shortcut which implies the use of the kernel's pgd, instead
  * of a process's
+ * - 가상주소에 대한 커널용 pgd 엔트리 주소를 얻는다.
  */
 #ifndef pgd_offset_k
 #define pgd_offset_k(address)		pgd_offset(&init_mm, (address))

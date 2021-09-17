@@ -670,6 +670,10 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 {
 	if (in_swapper_pgdir(p4dp)) {
+		/*
+		 * 연결하고자 하는 pgd가 swapper_pgdir (커널 페이지 테이블) 인 경우,
+		 * fixmap 영역의 bm_pud를 p4dp(swapper_pgdir)에 설정한다.
+		 */
 		set_swapper_pgd((pgd_t *)p4dp, __pgd(p4d_val(p4d)));
 		return;
 	}

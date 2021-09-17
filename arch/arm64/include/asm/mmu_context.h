@@ -82,11 +82,18 @@ static inline bool __cpu_uses_extended_idmap_level(void)
 
 /*
  * Set TCR.T0SZ to its default value (based on VA_BITS)
+ * TCR (Translation Control Register)는 EL1 레벨부터 지원하며 EL0 - 사용자 레벨은
+ * 지원하지 않는다.
  */
 static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 {
 	unsigned long tcr;
 
+	/*
+	 * "idmap 확장"은 가상 주소가 사용하는 비트가 48비트보다 작은 커널에서
+	 * 실제 물리 메모리 주소가 가상 주소보다 큰 경우 1:1 매핑을 할 수 없는 경우를 위해
+	 * 사용한다.
+	 */
 	if (!__cpu_uses_extended_idmap())
 		return;
 
@@ -97,6 +104,9 @@ static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 	isb();
 }
 
+/*
+ * TCR_EL1.T0SZ: TTBR0_EL1 가 가리키는 페이지 테이블이 관리하는 가상 메모리 크기
+ */
 #define cpu_set_default_tcr_t0sz()	__cpu_set_tcr_t0sz(TCR_T0SZ(vabits_actual))
 #define cpu_set_idmap_tcr_t0sz()	__cpu_set_tcr_t0sz(idmap_t0sz)
 

@@ -7247,6 +7247,8 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 	 * Blocking primitives will set (and therefore destroy) current->state,
 	 * since we will exit with TASK_RUNNING make sure we enter with it,
 	 * otherwise we will destroy state.
+	 *
+	 * 현재 프로세스의 상태가 RUNNING 상태가 아닌 경우 경고 메시지를 출력한다.
 	 */
 	WARN_ONCE(current->state != TASK_RUNNING && current->task_state_change,
 			"do not call blocking ops when !TASK_RUNNING; "

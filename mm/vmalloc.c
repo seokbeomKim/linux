@@ -2061,22 +2061,54 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	struct vm_struct *area;
 	unsigned long requested_size = size;
 
+	/*
+	 * current context 에서 preempt_count 값을 이용하여 인터럽트
+	 * 컨텍스트인지를 판단한다. 앞서 vmap 에서 might_sleep() 을 이용하여
+	 * sleep-able context 라는 것을 명시하였음에도 불구하고 인터럽트
+	 * 컨텍스트에서 호출되었는지를 확인한다.
+	 */
 	BUG_ON(in_interrupt());
 	size = PAGE_ALIGN(size);
 	if (unlikely(!size))
 		return NULL;
 
+	/*
+	 * I/O remapping 이 요청된 경우 size에 가까운 2의 제곱 단위로 align 값을
+	 * 정한다.
+	 * . ARM64, 4K page, 3-level: 4K ~ 2M
+	 * . ARM64, 4K page, 4-level: 4K ~ 1G
+	 */
 	if (flags & VM_IOREMAP)
 		align = 1ul << clamp_t(int, get_count_order_long(size),
 				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
+	/*
+	 * vm_struct 구조체 할당을 위해 크기만큼 메모리를 할당받는다.
+	 */
 	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
 	if (unlikely(!area))
 		return NULL;
 
+	/*
+	 * vmalloc 영역에 매핑 시 1페이지씩 가드를 두는데, KASAN 모듈을 사용하는
+	 * 경우에는 shadow 메모리용 페이지를 vmalloc 영역에 할당받으며, shadow는
+	 * 가드 없이 할당해야 하므로 VM_NO_GUARD 플래그를 설정하고 호출해야
+	 * 한다. 즉, 아래 조건은 KASAN의 shadow 메모리를 위한 조건이다.
+	 *
+	 * Q. vmalloc에서 가드를 두는 이유
+	 *
+	 * A. stack overflow 를 이용한 취약점을 방지하기 위해 도입한 것으로,
+	 * 처음 도입할 때는 싱글 페이지 한 개를 사용했지만 현재는 1MB 크기의
+	 * 가드 영역을 사용한다. 하지만 이러한 방식은 완전히 취약점을 해결할
+	 * 수는 없는 방법이다.
+	 */
 	if (!(flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
 
+	/*
+	 * 요청한 가상 주소 범위에서 빈 매핑 공간을 찾아 vmap_area를 할당
+	 * 구성하고 RB 트리 및 리스트에 추가한 후 엔트리 정보를 리턴한다.
+	 */
 	va = alloc_vmap_area(size, align, start, end, node, gfp_mask);
 	if (IS_ERR(va)) {
 		kfree(area);
@@ -2395,6 +2427,11 @@ void *vmap(struct page **pages, unsigned int count,
 		return NULL;
 
 	size = (unsigned long)count << PAGE_SHIFT;
+
+	/*
+	 * 요청한 크기(페이지 단위로 정렬된 바이트 단위)로 vmalloc 공간에서 빈
+	 * 공간을 찾아 vm_area, vm_struct 정보를 구성한다.
+	 */
 	area = get_vm_area_caller(size, flags, __builtin_return_address(0));
 	if (!area)
 		return NULL;

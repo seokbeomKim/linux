@@ -126,6 +126,9 @@
  *
  * This macro does no typechecking and uses temporary variables of type
  * @type to make all the comparisons.
+ *
+ * 특정 범위([lo, hi]) 내에 val 이 있는지를 확인하여 없는 경우 경계값에 맞춰서
+ * 값을 리턴해주는 매크로이다.
  */
 #define clamp_t(type, val, lo, hi) min_t(type, max_t(type, val, lo), hi)
 

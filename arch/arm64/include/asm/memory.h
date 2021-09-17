@@ -279,6 +279,11 @@ extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #define virt_to_phys virt_to_phys
 static inline phys_addr_t virt_to_phys(const volatile void *x)
 {
+	/*
+	 * 커널의 가상 주소를 물리 주소로 변환한다. 이 때 한 가지 중요한 것은
+	 * 가상주소의 마지막 VA_BIT 에 따라 커널 메모리 가상 주소인지, 커널
+	 * 이미지 가상 주소인지를 판단한다. (lm_alias 참고)
+	 */
 	return __virt_to_phys((unsigned long)(x));
 }
 

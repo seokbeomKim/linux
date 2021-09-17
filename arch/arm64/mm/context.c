@@ -348,7 +348,19 @@ asmlinkage void post_ttbr_update_workaround(void)
 
 void cpu_do_switch_mm(phys_addr_t pgd_phys, struct mm_struct *mm)
 {
+	/* TTBR1 레지스터로부터 현재 설정된 Translation Table 주소를
+	 * 얻어온다. */
 	unsigned long ttbr1 = read_sysreg(ttbr1_el1);
+
+	/*
+	 * ASID (Address Specifier Identifier)
+	 *
+	 * https://community.arm.com/developer/ip-products/processors/f/cortex-a
+	 * -forum/5229/address-space-identifier---asid
+	 *
+	 * MMU uses an ASID to distinguish between memory pages which have the
+	 * same virtual address, but which are used by an individual task
+	 */
 	unsigned long asid = ASID(mm);
 	unsigned long ttbr0 = phys_to_ttbr(pgd_phys);
 

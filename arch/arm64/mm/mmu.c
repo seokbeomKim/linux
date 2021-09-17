@@ -1283,7 +1283,7 @@ static inline pud_t * fixmap_pud(unsigned long addr)
 	pgd_t *pgdp = pgd_offset_k(addr);
 	p4d_t *p4dp = p4d_offset(pgdp, addr);
 	p4d_t p4d = READ_ONCE(*p4dp);
-
+`
 	BUG_ON(p4d_none(p4d) || p4d_bad(p4d));
 
 	return pud_offset_kimg(p4dp, addr);
@@ -1309,6 +1309,9 @@ static inline pte_t * fixmap_pte(unsigned long addr)
  * directly on kernel symbols (bm_p*d). This function is called too early to use
  * lm_alias so __p*d_populate functions must be used to populate with the
  * physical address from __pa_symbol.
+ *
+ * bm_pud/bm_pmd/bm_pte 등은 커널 빌드 타임에 만들어지는 fixmap 전용 static
+ * 페이지 테이블이다.
  */
 void __init early_fixmap_init(void)
 {
@@ -1318,7 +1321,16 @@ void __init early_fixmap_init(void)
 	pmd_t *pmdp;
 	unsigned long addr = FIXADDR_START;
 
+	/*
+	 * init_mm의 pgd에 FIXADDR_START 만큼을 더하여 fixmap에 대한
+	 * pgd 엔트리 포인터를 얻는다.
+	 */
 	pgdp = pgd_offset_k(addr);
+
+	/*
+	 * ARM64 는 4레벨 페이지 테이블을 구성하므로, 실제 p4d_offset 은 pgdp 그대로
+	 * 갖게 된다. 즉, pgdp == p4dp 이다.
+	 */
 	p4dp = p4d_offset(pgdp, addr);
 	p4d = READ_ONCE(*p4dp);
 	if (CONFIG_PGTABLE_LEVELS > 3 &&
@@ -1327,12 +1339,29 @@ void __init early_fixmap_init(void)
 		 * We only end up here if the kernel mapping and the fixmap
 		 * share the top level pgd entry, which should only happen on
 		 * 16k/4 levels configurations.
+		 *
+		 * 페이지 테이블 변환 레벨이 4단계이고, 16K를 사용하는 경우
+		 * - bm_pud[] 페이지 테이블(fixmap 전용 static 페이지 테이블)
+		 * 이 커널 이미지 용도로 이미 활성화되어 사용 중이므로 fixmap 을 위해
+		 *  다시 활성화할 필요가 없다.
 		 */
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
 		pudp = pud_offset_kimg(p4dp, addr);
 	} else {
+		/*
+		 * bm_pud[] 테이블은 fixmap 영역 위주로 사용하고 커널 이미지 영역과
+		 * 공유하지 않는다. 이 경우에는 fixmap 영역을 사용하기 위해 bm_pud[]
+		 * 테이블을 pgd 엔트리와 연결하여 활성화한 후에 fixmap 시작 주소에
+		 * 해당하는 pud 엔트리 주소를 구한다.
+		 */
 		if (p4d_none(p4d))
+			/*
+			 * FIXMAP 에 해당하는 PGD가 설정되지 않은 경우 PGD 엔트리와
+			 * 연결하여 활성화한다.
+			 */
 			__p4d_populate(p4dp, __pa_symbol(bm_pud), PUD_TYPE_TABLE);
+
+		/* 곧바로 fixmap 시작 주소에 해당하는 PUD 엔트리 주소를 구한다. */
 		pudp = fixmap_pud(addr);
 	}
 	if (pud_none(READ_ONCE(*pudp)))

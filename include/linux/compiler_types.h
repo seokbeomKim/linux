@@ -21,6 +21,11 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 /* other */
+
+/*
+ * force attribute는 sparse에서 관련 warning을 suppression 하기 위한 속성이다:
+ * https://stackoverflow.com/questions/53120610/what-does-the-attribute-force-do
+ */
 # define __force	__attribute__((force))
 # define __nocast	__attribute__((nocast))
 # define __safe		__attribute__((safe))

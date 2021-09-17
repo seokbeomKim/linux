@@ -72,8 +72,24 @@ static void __iomem *prev_map[FIX_BTMAPS_SLOTS] __initdata;
 static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
 static unsigned long slot_virt[FIX_BTMAPS_SLOTS] __initdata;
 
+/*
+ * early i/o mapping 를 주로 이용하는 경우는 다음과 같다.
+ * - ACPI 테이블에 접근해서 각종 디바이스의 설정 정보를 가져와야 하는 경우
+ * - EFI 테이블에 접근해서 각종 디바이스의 설정 정보를 가져와야 하는 경우
+ * - 일부 디바이스에서 특정 설정 정보 등을 읽어와야 하는 경우
+ *
+ * 일반적으로 paging_init 함수가 수행된 후에 메모리 및 입출력 장치들이 가상 주소
+ * 공간에 정식으로 매핑되어 사용될 수 있지만, 위 경우와 같이 그러한 동작이
+ * 완료되기 전에 반드시 먼저 매핑되어야 하는 경우는 아래와 같이 early ioremap 이
+ * 사용되어야 한다.
+ */
 void __init early_ioremap_setup(void)
 {
+	/*
+	 * early I/O mapping을 위해 fixmap 영역에 7개의 256K 가상 주소 영역을
+	 * 준비한다.
+	 * FIX_BTMAPS_SLOTS = 7
+	 */
 	int i;
 
 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
@@ -216,6 +232,10 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 void __init __iomem *
 early_ioremap(resource_size_t phys_addr, unsigned long size)
 {
+	/*
+	 * FIXMAP_PAGE_IO 속성은 ARM에서의 device 타입과 같이 캐시를 사용하지
+	 * 않는다.
+	 */
 	return __early_ioremap(phys_addr, size, FIXMAP_PAGE_IO);
 }
 

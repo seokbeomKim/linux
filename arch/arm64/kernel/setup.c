@@ -297,6 +297,11 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	 */
 	arm64_use_ng_mappings = kaslr_requires_kpti();
 
+	/*
+	 * 고정 매핑 초기화: fixmap 가상 주소에 접근할 수 있도록 커널 빌드
+	 * 타임에 만들어진 fixmap 전용 static 페이지 테이블을 pgd 테이블에
+	 * 연결하여 매핑한다.
+	 */
 	early_fixmap_init();
 	early_ioremap_init();
 
