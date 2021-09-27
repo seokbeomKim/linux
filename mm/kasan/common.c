@@ -779,6 +779,12 @@ int kasan_populate_vmalloc(unsigned long addr, unsigned long size)
 /*
  * Poison the shadow for a vmalloc region. Called as part of the
  * freeing process at the time the region is freed.
+ *
+ * Q. "Poison the shadow for a vmalloc region" 의 의미가 무엇일까? kasan의
+ * shadow 영역을 poison 한다는 것은 무엇인가? 왜 필요한가?
+ *
+ * A. shadow 영역을 poison => 에러 상태로 표시, unpoison => 정상 상태로 표시
+ * 한다는 의미로 상황에 맞는 초기화를 위해 사용한다.
  */
 void kasan_poison_vmalloc(const void *start, unsigned long size)
 {

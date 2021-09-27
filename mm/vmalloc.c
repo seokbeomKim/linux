@@ -193,6 +193,11 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr,
 		pgtbl_mod_mask *mask)
 {
+	/*
+	 * 파라미터로 전달된 pages 는 사용하는 caller 쪽에서 전달하는 페이지
+	 * 포인터로, 미리 할당된 페이지이다. 즉, vmap은 미리 할당된 페이지들을
+	 * 가지고 연속적인 가상 메모리 영역을 매핑하는 것이 목적이다.
+	 */
 	pte_t *pte;
 
 	/*
@@ -303,6 +308,11 @@ int map_kernel_range_noflush(unsigned long addr, unsigned long size,
 	BUG_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
 	do {
+		/*
+		 * init_pgd 함수 처리의 루틴과 흡사하다. pgd (p4d) -> pud -> pmd
+		 * -> pte 순서로 페이지 테이블 엔트리를 구성하며 마지막 pte
+		 * 단계에서 실제 사용할 물리 페이지를 매핑한다.
+		 */
 		next = pgd_addr_end(addr, end);
 		if (pgd_bad(*pgd))
 			mask |= PGTBL_PGD_MODIFIED;
@@ -317,6 +327,10 @@ int map_kernel_range_noflush(unsigned long addr, unsigned long size,
 	return 0;
 }
 
+/*
+ * ARM64 커널 분석 책에서는 vmap_page_range로 되어 있지만 함수명이 함께
+ * 바뀌었다.
+ */
 int map_kernel_range(unsigned long start, unsigned long size, pgprot_t prot,
 		struct page **pages)
 {
@@ -1145,6 +1159,9 @@ static void free_vmap_area(struct vmap_area *va)
 /*
  * Allocate a region of KVA of the specified size and alignment, within the
  * vstart and vend.
+ *
+ * vmap_area의 *vm 포인터는 vm_struct 를 가리키며 해당 vm_struct는 페이지 정보를
+ * 가진다. vmap_area는 RB Tree와 리스트로 함께 관리된다.
  */
 static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long align,
@@ -1166,6 +1183,13 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	might_sleep();
 	gfp_mask = gfp_mask & GFP_RECLAIM_MASK;
 
+	/*
+	 * slab 할당자를 통해 노드를 할당한다: 할당에 대한 자세한 내용은 향후
+	 * 메모리 할당에서 다룬다. 할당받은 가상 주소를 이용하여 memory leak을
+	 * 체크한다. (kkemleak에 스캔할 영역을 등록한다.)
+	 *
+	 * TODO kmemleak 에 대해 알아볼 것
+	 */
 	va = kmem_cache_alloc_node(vmap_area_cachep, gfp_mask, node);
 	if (unlikely(!va))
 		return ERR_PTR(-ENOMEM);
@@ -1191,6 +1215,13 @@ retry:
 	 * if not preloaded, GFP_NOWAIT is used.
 	 *
 	 * Set "pva" to NULL here, because of "retry" path.
+	 *
+	 * vmalloc 메모리 할당 관련, https://lkml.org/lkml/2018/10/19/786 에서
+	 * 기존 메모리 할당의 속도 문제를 해결하기 위해 수정한 패치 내용이
+	 * 있다. 기존에는 메모리 할당을 위해 필요한 free block을 전체 리스트에서
+	 * 일일이 순환하여 busy block 사이에 있는 free block을 찾기 위해 탐색을
+	 * 했고 이로 인해 할당 속도 문제가 있었다. 이러한 문제를 해결하기 위해
+	 * 할당 크기와 free block 크기에 따라 구분하기 시작했다.
 	 */
 	pva = NULL;
 
@@ -2115,6 +2146,10 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		return NULL;
 	}
 
+	/*
+	 * KASAN unpoison 이라 함은 해당 shadow 영역을 정상 상태로 마킹하는 것을
+	 * 말한다.
+	 */
 	kasan_unpoison_vmalloc((void *)va->va_start, requested_size);
 
 	setup_vmalloc_vm(area, va, flags, caller);
@@ -2169,6 +2204,12 @@ struct vm_struct *find_vm_area(const void *addr)
 {
 	struct vmap_area *va;
 
+	/*
+	 * vmalloc.c 에 정의되어 있는 R/B 트리 노드를 탐색하여 addr 에 해당하는
+	 * vmap_area를 가져온다. 한 가지 재미있는 것을 커널 내에서 사용하는 R/B
+	 * 트리 또한 리스트를 사용할 때와 마찬가지로 구조체 내에 노드를 정의하여
+	 * 연결하는 방식을 사용한다.
+	 */
 	va = find_vmap_area((unsigned long)addr);
 	if (!va)
 		return NULL;
@@ -2288,6 +2329,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
+	/* shadow memory를 poison(비정상상태로 변경)하여 향후 해제된 vmalloc
+	 * 영역에 접근하면 에러가 나올 수 있도록 초기화한다. */
 	kasan_poison_vmalloc(area->addr, area->size);
 
 	vm_remove_mappings(area, deallocate_pages);

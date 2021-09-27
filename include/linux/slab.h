@@ -411,6 +411,14 @@ static __always_inline void kfree_bulk(size_t size, void **p)
 
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment __malloc;
+
+/*
+ * slab.h 에 정의되어 있는 kmem_cache_alloc_node는 단순 정의의며, CONFIG 에 따라
+ * slab/slob/slub 등에 구현되어 있는 것을 이용한다.
+ *
+ * __assume_slab_alignment:
+ * __malloc:
+ */
 void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node) __assume_slab_alignment __malloc;
 #else
 static __always_inline void *__kmalloc_node(size_t size, gfp_t flags, int node)

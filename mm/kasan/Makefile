@@ -15,6 +15,9 @@ CFLAGS_REMOVE_tags_report.o = $(CC_FLAGS_FTRACE)
 
 # Function splitter causes unnecessary splits in __asan_load1/__asan_store1
 # see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
+
+# cc-option 에 대해서는 다음 링크를 참고한다:
+# https://patchwork.kernel.org/project/linux-kbuild/patch/20180510051659.15356-4-npiggin@gmail.com/
 CC_FLAGS_KASAN_RUNTIME := $(call cc-option, -fno-conserve-stack)
 CC_FLAGS_KASAN_RUNTIME += -fno-stack-protector
 # Disable branch tracing to avoid recursion.
