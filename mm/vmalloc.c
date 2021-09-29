@@ -506,6 +506,9 @@ unsigned long vmalloc_nr_pages(void)
 
 static struct vmap_area *__find_vmap_area(unsigned long addr)
 {
+	/*
+	 * vmap_area_root RB트리에서 addr에 해당하는 vmap_area를 얻어온다.
+	 */
 	struct rb_node *n = vmap_area_root.rb_node;
 
 	while (n) {
@@ -1449,6 +1452,13 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 
 	nr_lazy = atomic_long_add_return((va->va_end - va->va_start) >>
 				PAGE_SHIFT, &vmap_lazy_nr);
+	/*
+	 * 책에 언급되어 있는 내용과 약간 차이가 있는데, 이는 2016년도에
+	 * 80c4bd7a5e4368b680e0aeb57050a1b06eb573d8 커밋에 의해 list 에서 llist
+	 * 를 사용하는 것으로 변경되었다. lockless list라고 언급되어 있는데
+	 * llist가 무엇인지 좀 더 찾아보자.
+	 * Q. lockless list
+	 */
 
 	/* After this point, we may free va at any time */
 	llist_add(&va->purge_list, &vmap_purge_list);
@@ -1467,6 +1477,8 @@ static void free_unmap_vmap_area(struct vmap_area *va)
 	if (debug_pagealloc_enabled_static())
 		flush_tlb_kernel_range(va->va_start, va->va_end);
 
+	/* noflush 의미는 곧바로 자료구조 메모리 (vmap_area, vmap_struct 등)를
+	 * 해제하지 않고 purge_list에 추가하여 flush를 지연시킨다는 의미이다. */
 	free_vmap_area_noflush(va);
 }
 
@@ -2084,6 +2096,10 @@ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
 	vm->flags &= ~VM_UNINITIALIZED;
 }
 
+/*
+ * 요청 가상 주소 범위에서 요청한 사이즈가 들어갈 수 있는 빈자리를 찾고 그
+ * 가상주소로 vmap_area, vm_struct 를 구성하여 반환한다.
+ */
 static struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
 		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
