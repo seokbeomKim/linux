@@ -1456,13 +1456,29 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 	 * 책에 언급되어 있는 내용과 약간 차이가 있는데, 이는 2016년도에
 	 * 80c4bd7a5e4368b680e0aeb57050a1b06eb573d8 커밋에 의해 list 에서 llist
 	 * 를 사용하는 것으로 변경되었다. lockless list라고 언급되어 있는데
-	 * llist가 무엇인지 좀 더 찾아보자.
+	 * llist가 무엇인지 찾아보자.
 	 * Q. lockless list
 	 */
 
 	/* After this point, we may free va at any time */
 	llist_add(&va->purge_list, &vmap_purge_list);
 
+	/*
+	 * vmap_area를 곧바로 삭제하지 않고 purge_list에 추가한다. vmap_area가
+	 * 재활용되는 경우 시간 소모가 큰 TLB 캐시를 flush하지 않아도 되기
+	 * 때문에 성능이 매우 좋아진다.
+	 *
+	 * A. TLB는 Translation Lookup Buffer 아닌가? 할당된 vmap_area 을
+         * 해제하는 것과 TLB 를 flush하는 것은 무슨 관계인가?
+         * flush_cache_vunmap과 TLB를 flush하는 것은 다른 것인가?  TLB는
+         * Translation Lookaside Buffer 로 "가상주소 -> 물리주소" 로의 변환을
+         * 위한 캐시역할을 한다. 때문에 Software Page Table이 변경되면 TLB도
+         * 함께 flush되어야 한다.
+	 *
+	 * 하지만 여기에서는 곧바로 TLB flush를 하지 않고 해제되어야 할
+	 * 페이지들을 최대한 남겨둔 채 가급적 재사용할 수 있을때까지 기다리는
+	 * 방식을 통해 TLB flush 지연 + 자원 재사용을 늘리는 방식을 택했다.
+	 */
 	if (unlikely(nr_lazy > lazy_max_pages()))
 		try_purge_vmap_area_lazy();
 }

@@ -97,5 +97,13 @@ EXPORT_SYMBOL(ioremap_cache);
  */
 void __init early_ioremap_init(void)
 {
+	/*
+	 * early I/O memory mapping 초기화를 위한 함수이다. 커널 부트업 과정에서
+	 * paging_init() 함수가 수행된 이후에 메모리 및 입출력 장치들이 가상
+	 * 주소 공간에 정식으로 매핑되어 사용될 수 있는데, 이러한 동작 전에
+	 * 매핑되어 사용되어야 하는 경우를 위한 설정이다. 보통, 특정 시스템의
+	 * 바이오스 정보에 접근해 메모리 및 디바이스 정보를 가져오는 경우에
+	 * 사용한다.
+	 */
 	early_ioremap_setup();
 }

@@ -22,6 +22,12 @@
 #include <asm/page.h>
 #include <asm/pgtable-prot.h>
 
+/* 커널 해킹 위한 매크로 */
+#define DO_PRAGMA(x) _Pragma (#x)
+#define VALUE_TO_STRING(x) #x
+#define VALUE(x) VALUE_TO_STRING(x)
+#define VAR_NAME_VALUE(var) #var "=" VALUE_TO_STRING(var)
+
 /*
  * Here we define all the compile-time 'special' virtual
  * addresses. The point is to have a constant address at
@@ -31,8 +37,11 @@
  * Each enum increment in these 'compile-time allocated'
  * memory buffers is page-sized. Use set_fixmap(idx,phys)
  * to associate physical memory with a fixmap index.
+ *
+ * 각각의 엔트리가 기본 페이지 크기만큼 할당되어 있다는 말인가?
  */
 enum fixed_addresses {
+	/* 예비 엔트리 페이지 1개 - 현재 사용하지 않는다. */
 	FIX_HOLE,
 
 	/*
@@ -44,14 +53,18 @@ enum fixed_addresses {
 	 *
 	 * Keep this at the top so it remains 2 MB aligned.
 	 */
-#define FIX_FDT_SIZE		(MAX_FDT_SIZE + SZ_2M)
+#define FIX_FDT_SIZE		(MAX_FDT_SIZE + SZ_2M) /* 4M */
 	FIX_FDT_END,
-	FIX_FDT = FIX_FDT_END + FIX_FDT_SIZE / PAGE_SIZE - 1,
+	FIX_FDT = FIX_FDT_END + FIX_FDT_SIZE / PAGE_SIZE - 1, /* 4M / 4K - 1 */
 
-	FIX_EARLYCON_MEM_BASE,
-	FIX_TEXT_POKE0,
+	FIX_EARLYCON_MEM_BASE,	/* 시리얼 디바이스 입출력을 위한 fixmap 영역 */
+	FIX_TEXT_POKE0,		/* 읽기 전용으로 매핑된 커널을 런타임 중 변경할 때 사용
+				   예) jump_label, module probe */
 
 #ifdef CONFIG_ACPI_APEI_GHES
+	/* ACPI: ACPI Platform Error Interface
+	 * GHES: General Hardware Error Source
+	 */
 	/* Used for GHES mapping from assorted contexts */
 	FIX_APEI_GHES_IRQ,
 	FIX_APEI_GHES_SEA,
@@ -82,6 +95,7 @@ enum fixed_addresses {
 	/*
 	 * Used for kernel page table creation, so unmapped memory may be used
 	 * for tables.
+	 * 커널 페이지 테이블 수정 시 사용한다.
 	 */
 	FIX_PTE,
 	FIX_PMD,
@@ -90,6 +104,8 @@ enum fixed_addresses {
 
 	__end_of_fixed_addresses
 };
+
+#pragma message(VAR_NAME_VALUE(FIX_FDT_SIZE))
 
 /* 0x5CD << 12 = 0x17340000 */
 #define FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
