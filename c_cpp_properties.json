@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/arch/arm/include",
+                "${workspaceFolder}/arch/arm/include/generated",
+                "${workspaceFolder}/arch/arm64/include",
+                "${workspaceFolder}/arch/arm64/include/generated",
+            ],
+            "forcedInclude": [
+                "${workspaceFolder}/include/generated/autoconf.h"
+            ],
+            "defines": [
+                "__KERNEL__"
+            ],
+            "cStandard": "c11",
+            "intelliSenseMode": "gcc-x64",
+            "compileCommands": "${workspaceFolder}/compile_commands.json"
+        }
+    ],
+    "version": 4
+}
