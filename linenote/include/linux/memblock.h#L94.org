@@ -1,0 +1,5 @@
+* Memblock structure
+
+** memory와 reserved의 차이는 무엇인가?
+
+memory는 "usable meomry regions" 으로서 사용 가능한 메모리 영역을 나타내고 reserved는 이미 할당된 메모리 영역을 나타낸다.

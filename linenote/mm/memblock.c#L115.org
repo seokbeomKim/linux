@@ -1,0 +1,13 @@
+* __initdata_memblock
+
+ARM64 기준 $KERNEL_SOURCE/mm/Kconfig 에는 아래와 같이 ~ARCH_KEEP_MEMBLOCK~ 설정값이 있다.
+
+#+begin_quote
+# Don't discard allocated memory used to track "memory" and "reserved" memblocks
+# after early boot, so it can still be used to test for validity of memory.
+# Also, memblocks are updated with memory hot(un)plug.
+config ARCH_KEEP_MEMBLOCK
+	bool
+#+end_quote
+
+.init section을 사용하지 않음으로써 시스템 초기화 이후 memblock에 관련된 섹션들이 메모리 해제되지 않도록 한다.

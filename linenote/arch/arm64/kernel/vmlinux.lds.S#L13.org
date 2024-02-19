@@ -1,0 +1,7 @@
+* Special Sections
+
+In Linux kernel, 'special sections' are used for kernel features. Read the reference, Special sections in Linux binaries.
+
+* References
+
+https://lwn.net/Articles/531148/
