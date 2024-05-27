@@ -1,0 +1,5 @@
+* .balign
+
+This is a directive in assembly code used to align instructions or data to specified "boundaries", which is crucial for optimizing performance and ensuring correctness in certain architecutres. The directive can pad the necessary bytes to align the next instruction or data, and it's often used to comply with architectural requirements or optimize memory access patterns.
+
+This value is set to 8 by default in yocto linux.

@@ -1,0 +1,63 @@
+* 목차 :toc:
+- [[#섹션-sections][섹션 (Sections)]]
+  - [[#섹션이란][섹션이란?]]
+  - [[#섹션은-왜-사용하는가][섹션은 왜 사용하는가?]]
+  - [[#섹션-정의][섹션 정의]]
+
+* 섹션 (Sections)
+
+In $kernel/include/linux/init.h, there is a defitniton '__HEAD' as following:
+
+#+begin_src c
+*define __HEAD		.section	".head.text","ax"
+#+end_src
+
+This page will break down the section definition. First of all, let's see the
+section definition.
+
+#+begin_quote
+.section ".head.text", "ax"
+#+end_quote
+
+This is an assembler directive that specifies a section of the object file.
+.section is an assembler directive used to declare a new section or switch to an
+existing section in the output file. ".head.text".
+
+** 섹션이란?
+
+According to the GPT, a section is a part of an object file or executable. It
+groups together code and data with similar attributes. Sections help organize
+the contents of the file and control how the operating system. loads and manages
+the program in memory.
+
+** 섹션은 왜 사용하는가?
+
+*** Organization
+Sections help organize code and data logically, mking it easier to manage and
+understand.
+
+*** Control
+They provide control over memory layout, which is critical for low-level system
+programming like operating system kernels.
+
+*** Optimization
+Different sections can be optimized differently by the link and loader.
+
+*** Protection
+Sections allow setting differnt memory protection attributes, such as read-only
+or executable, enhancing security.
+
+** 섹션 정의
+
+*** .section
+어셈블러 디렉티브로서 오프젝트 (object)파일의 섹션 하나를 정의한다.
+
+*** .head.text
+섹션 이름을 정의한다.
+
+*** ax
+섹션의 속성(attribute)를 정의한다.
+
+- a (allocatable): the section will be allocated in memory.
+- x (executable): the section contains executable code.
+

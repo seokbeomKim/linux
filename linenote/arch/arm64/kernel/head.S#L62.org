@@ -1,0 +1,5 @@
+* Metadata Fields
+
+.quad 0 부터 .section ".idmap.text", "a" 까지 메타데이터 필드들을 위한 부분이다.
+
+- ~.quad 0~: 이미지 로드 오프셋으로 부트로더에 의해 설정된다.

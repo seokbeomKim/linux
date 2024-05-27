@@ -1,0 +1,46 @@
+SYM_CODE_END(primary_entry)
+
+#+begin_src c
+#define SYM_CODE_END(name)				\
+	SYM_END(name, SYM_T_NONE)
+#+end_src
+
+-> SYM_END(primary_entry, SYM_T_NONE)
+
+#+begin_src c
+#define SYM_END(name, sym_type)				\
+	.type name sym_type ASM_NL			\
+	.set .L__sym_size_##name, .-name ASM_NL		\
+	.size name, .L__sym_size_##name
+#+end_src
+
+->
+.type primary_entry SYM_T_NONE ASM_NL
+.set .L__sym_size_primary_entry, .-primary_entry ASM_NL
+.size primary_entry, .L__sym_size_primary_entry
+
+->
+
+#+begin_src c
+#define SYM_T_NONE				STT_NOTYPE
+#define STT_NOTYPE  0
+#+end_src
+
+.type primary_entry 0;
+.set .L__sym_size_primary_entry, . - primary_entry;
+.size primary_entry, .L__sym_size_primary_entry
+
+* .type primary_entry 0;
+이 directive는 =primary_entry= 심볼의 타입을 정의한다. 통상적으로 type으로
+@function 또는 @object 를 사용하지만 여기서는 0을 사용했는데 이는 일반적으로
+타입을 정의하는 방법은 아니다. 말그대로 NOTYPE 이다.
+
+* .set .L__sym_size_primary_entry, . - primary_entry
+.L__sym_size_primary_entry라는 새로운 심볼을 정의하며 primary_entry까지의 offset을 저장한다.
+
+* .size primary_entry, .L__sym_size_primary_entry
+이 directive는 primary_entry 심볼의 크기가 .L__sym_size_primary_entry에
+저장된다고 선언한다. 디버깅이나 링킹 목적으로 매우 중요하다. 일반적으로 .size의
+경우 *static declaration* 으로서 링커와 다른 도구에 심볼의 크기를 알리는 목적을
+갖는다. 하지만 코드에 따라 심볼의 크기는 달라질 수 있으므로 이를 처리하기 위해
+dynamic calculation 방식, 즉 .set directive를 이용한 방법을 사용한다.

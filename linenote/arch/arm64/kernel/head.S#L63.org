@@ -1,0 +1,50 @@
+* 목차 :toc:
+- [[#le64sym][le64sym]]
+- [[#little-endian-vs-big-endian][Little Endian vs. Big Endian]]
+- [[#매크로-정의][매크로 정의]]
+- [[#예시][예시]]
+
+* le64sym
+
+le64sym 은 little-endian 형식으로 64비트를 저장하기 위한 어셈블리 매크로이다. 일반적으로 바이너리 내에 포함된 심볼릭 값들이 시스템 엔디안에 상관없이 정상적으로 interpreted 될 수 있도록 하기 위해 사용한다.
+
+* Little Endian vs. Big Endian
+- Little Endian: LSB is stored at the lowest memory address.
+- Big Endian: MSB is stored at the lowest memory address.
+
+* 매크로 정의
+매크로 정의를 살펴보면 아래와 같이 정의된다.
+
+#+begin_src asm
+	.macro	le64sym, sym
+	.long	\sym\()_lo32
+	.long	\sym\()_hi32
+	.endm
+#+end_src
+
+- .long \sym\()_lo32: emits the lower 32 bits of the symbol's value.
+- .long \sym\()_hi32: emits the upper 32 bits of the symbol's value.
+
+이로써 매크로는 심볼의 64비트 주소를 32비트짜리 값 2개로 나누고 ~.long~
+directive는 각 부분이 little-endian 형식으로 저장되도록 한다.
+
+* 예시
+만약 _kernel_size_le = 0x123456789ABCDEF0 라면, le64sym _kernel_size_le 는 아래와 같이 결정된다.
+
+.long 0x9ABCDEF0
+.long 0x12345678
+
+이를 메모리 레이아웃 (Memory Layout) 으로 나타내면 아래와 같다.
+
+| Address | Value (byte) |
+|---------+--------------|
+|    0x00 |         0xF0 |
+|    0x01 |         0xDE |
+|    0x02 |         0xBC |
+|    0x03 |         0x9A |
+|    0x04 |         0x78 |
+|    0x05 |         0x56 |
+|    0x06 |         0x34 |
+|    0x07 |         0x12 |
+
+중요한 점은 리눅스 커널에서는 Image header를 위해 =HEAD_SYMBOLS= 매크로를 사용하며 커널의 엔디안에 상관없이 무조건 리틀 엔디안을 기본으로 한다.

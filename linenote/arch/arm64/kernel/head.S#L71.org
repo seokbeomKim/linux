@@ -1,0 +1,5 @@
+efi_signature_nop에 의해 설정된 .L_head 레이블을 이용해 __EFI_PE_HEADER 매크로에서 PE HEADER의 오프셋을 구할 수 있다.
+
+#+begin_src asm
+.set .Lpe_header_offset, . - .L_head
+#+end_src
