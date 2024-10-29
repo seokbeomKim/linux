@@ -1,63 +1,69 @@
-* 목차 :toc:
-- [[#섹션-sections][섹션 (Sections)]]
-  - [[#섹션이란][섹션이란?]]
-  - [[#섹션은-왜-사용하는가][섹션은 왜 사용하는가?]]
-  - [[#섹션-정의][섹션 정의]]
+* Sections
 
-* 섹션 (Sections)
+#+begin_quote
+A section is an area in an object file that contains information which is useful for linking: the
+programs' code and data, relocation information, and more. It turns out that the Linux kernel has
+some additional types of sections, called "special sections", that are used to implement various
+kernel features.
+#+end_quote
 
-In $kernel/include/linux/init.h, there is a defitniton '__HEAD' as following:
+In ~$kernel/include/linux/init.h~, there is a definition '__HEAD' as following:
 
 #+begin_src c
 *define __HEAD		.section	".head.text","ax"
 #+end_src
 
-This page will break down the section definition. First of all, let's see the
-section definition.
+This page will break down the section definition. First of all, let's see the section definition.
 
 #+begin_quote
 .section ".head.text", "ax"
 #+end_quote
 
-This is an assembler directive that specifies a section of the object file.
-.section is an assembler directive used to declare a new section or switch to an
-existing section in the output file. ".head.text".
+This is an assembler directive that specifies a section of the object file. .section is an assembler
+directive used to declare a new section or switch to an existing section in the output file.
+".head.text".
 
-** 섹션이란?
+* Example
 
-According to the GPT, a section is a part of an object file or executable. It
-groups together code and data with similar attributes. Sections help organize
-the contents of the file and control how the operating system. loads and manages
-the program in memory.
+Using hexdump, it is able to dump the actual data from __HEAD to __EFI_PE_HEADER.
 
-** 섹션은 왜 사용하는가?
+#+begin_src bash
+cd /home/sukbeom/workspace/yocto/build/workspace/sources/linux-yocto-media/oe-workdir/linux-yocto-media-6.8+git
+hexdump -C -n 0x10060 vmlinux
+#+end_src
 
-*** Organization
-Sections help organize code and data logically, mking it easier to manage and
-understand.
+#+RESULTS:
+|        0 | 7f | 45 | 4c | 46 |  2 |  1 |  1 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | .ELF............ |
+|       10 |  3 |  0 | b7 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |  0 | 80 |  0 | 80 | ff | ff |   | ................ |
+|       20 | 40 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | d0 |  4 |  0 | 12 |  0 |  0 |  0 |  0 |   | @............... |
+|       30 |  0 |  0 |  0 |  0 | 40 |  0 | 38 |  0 |  4 |  0 | 40 |  0 | 2a |  0 | 29 |  0 |   | ....@.8...@.*.). |
+|       40 |  1 |  0 |  0 |  0 |  5 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|       50 |  0 |  0 |  0 | 80 |  0 | 80 | ff | ff |  0 |  0 |  0 | 80 |  0 | 80 | ff | ff |   | ................ |
+|       60 |  0 | c0 | db |  0 |  0 |  0 |  0 |  0 |  0 | c0 | db |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|       70 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |  7 |  0 |  0 |  0 |   | ................ |
+|       80 |  0 |  0 | dd |  0 |  0 |  0 |  0 |  0 |  0 |  0 | dc | 80 |  0 | 80 | ff | ff |   | ................ |
+|       90 |  0 |  0 | dc | 80 |  0 | 80 | ff | ff |  0 | d2 | a7 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+| 000000a0 | 90 | db | b2 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  1 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+| 000000b0 |  4 |  0 |  0 |  0 |  4 |  0 |  0 |  0 | 88 | bd | 14 |  1 |  0 |  0 |  0 |  0 |   | ................ |
+| 000000c0 | 88 | bd | 13 | 81 |  0 | 80 | ff | ff | 88 | bd | 13 | 81 |  0 | 80 | ff | ff |   | ................ |
+| 000000d0 | 54 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | 54 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | T.......T....... |
+|      0.0 |  4 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | 51 | e5 | 74 | 64 |  6 |  0 |  0 |  0 |   | ........Q.td.... |
+| 000000f0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|        * |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |   |                  |
+|      110 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | 10 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|      120 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|        * |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |   |                  |
+|    10000 | 4d | 5a | 40 | fa | 29 |  4 | 45 | 14 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | MZ@.).E......... |
+|    10010 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | ................ |
+|    10020 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 | 41 | 52 | 4d | 64 | 30 |  0 |  0 |  0 |   | ........ARMd0... |
+|    10030 | 50 | 45 |  0 |  0 | 64 | aa |  2 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |   | PE..d........... |
+|    10040 |  0 |  0 |  0 |  0 | a0 |  0 |  6 |  2 | 0b |  2 |  2 | 14 |  0 |  0 | 1e |  1 |   | ................ |
+|    10050 |  0 |  0 | 71 |  0 |  0 |  0 |  0 |  0 | 30 | 4a | 1a |  1 |  0 |  0 |  1 |  0 |   | ..q.....0J...... |
+|    10060 |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |   |                  |
 
-*** Control
-They provide control over memory layout, which is critical for low-level system
-programming like operating system kernels.
+We found ARM64_IMAGE_MAGIC value (ARMd0 at 0x10020) and PE MAGIC (PE\0\0) as well.
 
-*** Optimization
-Different sections can be optimized differently by the link and loader.
 
-*** Protection
-Sections allow setting differnt memory protection attributes, such as read-only
-or executable, enhancing security.
-
-** 섹션 정의
-
-*** .section
-어셈블러 디렉티브로서 오프젝트 (object)파일의 섹션 하나를 정의한다.
-
-*** .head.text
-섹션 이름을 정의한다.
-
-*** ax
-섹션의 속성(attribute)를 정의한다.
-
-- a (allocatable): the section will be allocated in memory.
-- x (executable): the section contains executable code.
-
+* Reference
+- https://lwn.net/Articles/531148/
+- [[id:4719c7e5-b567-43c3-900b-47172f7124c4][org-roam: Section]]

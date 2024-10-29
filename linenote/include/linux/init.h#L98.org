@@ -1,0 +1,1 @@
+섹션 정의 내용에 따라 .head.text 섹션을 정의하며 권한은 ALLOC, EXECINSTR 를 갖는다.

@@ -3,6 +3,7 @@
 - [[#정리][정리]]
 
 * 개요
+
 =head.S= 파일에 왜 이렇게 복잡한 매크로를 사용하고 있는지는 모르겠지만 여러 매크로들을 풀어보면 아래와 같다.
 
 1. SYM_CODE_START(primary_entry)
@@ -41,6 +42,7 @@ align;
 primary_entry:
 
 * 정리
+
 즉, SYM_CODE_START(primary_entry)는 아래 어셈블리 코드와 동일하다.
 
 #+begin_src asm

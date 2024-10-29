@@ -1,0 +1,29 @@
+* Callee-saved registers
+
+In assembly language and low-level programming, *callee-saved* registers are a set of registers that a
+called function (callee) is responsible for preserving. The callee must save and restore before
+returning to the caller.
+
+In this convention:
+
+- If the callee wants to use these registers for its own operations, it must first *save* their
+  current values.
+- After the callee is done, it *restores* these registers to their original values before returning
+  control to the caller.
+- This ensures that the caller's state is preserved across function calls.
+
+In ARM64 architecture, the callee-saved registers are:
+
+- ~X19~
+- ~X20~
+- ~X21~
+- ~X22~
+- ~X23~
+- ~X24~
+- ~X25~
+- ~X26~
+- ~X27~
+- ~X28~
+- ~FP~ (~X29~)
+- ~LR~ (~X30~)
+
